@@ -18,7 +18,6 @@ const year = computed(() => new Date().getFullYear());
 .app-footer {
   width: 100%;
   padding: 16px;
-  margin-top: 40px;
   background: #111;
   color: #ddd;
   border-top: 1px solid #333;

@@ -1,10 +1,8 @@
 <template>
   <div class="home-page">
-
     <!-- Hero Banner -->
     <section class="hero" :style="heroStyle">
       <div class="hero-overlay"></div>
-
       <div class="hero-text">
         <h1>{{ heroTitle }}</h1>
         <p>{{ heroDescription }}</p>
@@ -42,7 +40,7 @@
           </svg>
         </button>
 
-        <!-- 영화 리스트 -->
+        <!-- 영화/게임 리스트 -->
         <div 
           class="row-container"
           :ref="el => rowRefs[index] = el"
@@ -54,6 +52,7 @@
             class="card"
             :style="{ backgroundImage: `url(${item.posterPath})` }"
             :title="item.title"
+            @click="handleCardClick(row.id, item.id)"
           >
             <div class="card-overlay">
               <p class="card-title">{{ item.title }}</p>
@@ -84,8 +83,7 @@
 import { ref, onMounted, computed } from "vue";
 
 const heroTitle = "당신의 취향을 위한 콘텐츠 탐색";
-const heroDescription =
-  "영화 · 음악 · 게임 기반 개인 맞춤형 추천 플랫폼";
+const heroDescription = "영화 · 음악 · 게임 기반 개인 맞춤형 추천 플랫폼";
 
 const heroImage = "https://i.imgur.com/Vv2NY1j.jpeg";
 const heroStyle = `background-image: url('${heroImage}')`;
@@ -93,7 +91,8 @@ const heroStyle = `background-image: url('${heroImage}')`;
 // 상태 관리
 const loading = ref(false);
 const error = ref("");
-const movies = ref([]);
+const movies = ref<Movie[]>([]);
+const games = ref<Game[]>([]);
 
 // 스크롤 관련
 const rowRefs = ref<HTMLElement[]>([]);
@@ -113,15 +112,88 @@ interface Movie {
   posterPath: string;
 }
 
+interface Game {
+  id: number;
+  name: string;
+  slug: string;
+  summary: string;
+  clickCnt: number;
+  screenshotUrl: string;
+  createdAt: string;
+}
+
 interface ApiResponse {
   status: number;
   code: string;
   title: string;
   message: string;
-  data: Movie[];
+  data: Movie[] | Game[];
   timestamp: string;
   transactionId: string;
 }
+
+// 카드 클릭 핸들러
+const handleCardClick = async (rowId: string, itemId: number) => {
+  console.log(`Card clicked - rowId: ${rowId}, itemId: ${itemId}`);
+  
+  if (rowId === 'games') {
+    // 게임 클릭 시 클릭수 증가
+    await incrementGameClick(itemId);
+  } else if (rowId === 'movies') {
+    // 영화 클릭 시 클릭수 증가
+    await incrementMoveClick(itemId);
+  }
+};
+
+// 영화 클릭수 증가
+const incrementMoveClick = async (moveId: number) => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/ingestion/movie/${moveId}/click`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    });
+    
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    
+    const result = await response.json();
+    console.log('Click count updated:', result);
+    
+    // 영화 목록 다시 불러오기 (클릭수 반영)
+    await fetchMovies();
+    
+  } catch (err) {
+    console.error('Failed to increment click count:', err);
+  }
+};
+
+// 게임 클릭수 증가
+const incrementGameClick = async (gameId: number) => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/ingestion/game/${gameId}/click`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    });
+    
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    
+    const result = await response.json();
+    console.log('Click count updated:', result);
+    
+    // 게임 목록 다시 불러오기 (클릭수 반영)
+    await fetchGames();
+    
+  } catch (err) {
+    console.error('Failed to increment click count:', err);
+  }
+};
 
 // 영화 데이터 가져오기
 const fetchMovies = async () => {
@@ -138,14 +210,42 @@ const fetchMovies = async () => {
     const result: ApiResponse = await response.json();
     
     if (result.status === 200 && result.data) {
-      movies.value = result.data;
+      movies.value = result.data as Movie[];
       console.log(`Successfully loaded ${result.data.length} movies`);
     } else {
       throw new Error(result.message || "데이터를 불러오는데 실패했습니다");
     }
   } catch (err) {
     console.error("Failed to fetch movies:", err);
-    error.value = "영화 목록을 불러오는데 실패했습니다. 잠시 후 다시 시도해주세요.";
+    error.value = "영화 목록을 불러오는데 실패했습니다.";
+  } finally {
+    loading.value = false;
+  }
+};
+
+// 게임 데이터 가져오기
+const fetchGames = async () => {
+  loading.value = true;
+  error.value = "";
+  
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/ingestion/game/main`);
+    
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    
+    const result: ApiResponse = await response.json();
+    
+    if (result.status === 200 && result.data) {
+      games.value = result.data as Game[];
+      console.log(`Successfully loaded ${result.data.length} games`);
+    } else {
+      throw new Error(result.message || "데이터를 불러오는데 실패했습니다");
+    }
+  } catch (err) {
+    console.error("Failed to fetch games:", err);
+    error.value = "게임 목록을 불러오는데 실패했습니다.";
   } finally {
     loading.value = false;
   }
@@ -156,7 +256,7 @@ const scrollLeft = (index: number) => {
   const container = rowRefs.value[index];
   if (container) {
     container.scrollBy({
-      left: -container.clientWidth * 0.8, // 화면의 80%만큼 스크롤
+      left: -container.clientWidth * 0.8,
       behavior: 'smooth'
     });
   }
@@ -184,12 +284,13 @@ const isAtEnd = (index: number) => {
   if (!container) return false;
   
   const maxScroll = container.scrollWidth - container.clientWidth;
-  return scrollPositions.value[index] >= maxScroll - 10; // 10px 여유
+  return scrollPositions.value[index] >= maxScroll - 10;
 };
 
 // 컴포넌트 마운트
 onMounted(() => {
   fetchMovies();
+  fetchGames();
 });
 
 // rows 데이터
@@ -197,7 +298,12 @@ const rows = computed(() => [
   {
     id: "movies",
     title: "당신을 위한 영화 추천",
-    items: movies.value
+    items: movies.value.map(movie => ({
+      id: movie.id,
+      posterPath: movie.posterPath,
+      title: movie.title,
+      voteAverage: movie.voteAverage
+    }))
   },
   {
     id: "music",
@@ -211,11 +317,12 @@ const rows = computed(() => [
   {
     id: "games",
     title: "당신 취향의 게임 추천",
-    items: [
-      { id: 7, posterPath: "https://i.imgur.com/zhMlFxJ.jpeg", title: "게임 1", voteAverage: 8.2 },
-      { id: 8, posterPath: "https://i.imgur.com/Oe0hJbX.jpeg", title: "게임 2", voteAverage: 7.5 },
-      { id: 9, posterPath: "https://i.imgur.com/cQ4Hxtc.jpeg", title: "게임 3", voteAverage: 8.9 }
-    ]
+    items: games.value.map(game => ({
+      id: game.id,
+      posterPath: `${API_BASE_URL}${game.screenshotUrl}`,
+      title: game.name,
+      voteAverage: null
+    }))
   }
 ]);
 </script>
