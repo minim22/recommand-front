@@ -66,13 +66,16 @@ const goRegister = () => {
 /* 전체 배경 - 영화/게임 플랫폼 스타일 */
 /* 라이트 배경 */
 .login-bg {
-  min-height: 100vh;
+  height: 100vh;           /* 고정 높이 */
+  width: 100vw;            /* 고정 너비 */
   background: #F5F5F5;
   display: flex;
   flex-direction: column;
   justify-content: center;
   align-items: center;
-  padding: 40px;
+  padding: 20px;           /* 패딩을 약간 줄여서 카드 위아래 여유 확보 */
+  box-sizing: border-box;  /* 패딩이 높이에 포함되도록 설정 */
+  overflow: hidden;        /* 내부 요소가 넘쳐도 스크롤 생성 방지 */
 }
 
 /* 화이트 카드 */

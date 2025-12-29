@@ -63,14 +63,14 @@ const logout = () => {
   background: #181818;
   color: #fff;
   border-bottom: 1px solid #333;
-  padding: 12px 0;
+  padding: 5px 0;
 }
 
 .header-inner {
-  max-width: 1280px;
+  max-width: 100%;
+  height: 50px;
   margin: 0 auto;
   padding: 0 16px;
-
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -84,7 +84,7 @@ const logout = () => {
 }
 
 .logo-image {
-  height: 40px; /* 원하는 크기로 조정 */
+  height: 50px; /* 원하는 크기로 조정 */
   object-fit: contain;
 }
 
